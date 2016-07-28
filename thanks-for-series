@@ -1,0 +1,70 @@
+#!/bin/bash
+
+
+function main
+{
+	if [[ -z "$1" ]]; then
+		base=master
+	else
+		base=$1
+		shift
+	fi
+
+	if [[ -z "$1" ]]; then
+		head=HEAD
+	else
+		head=$1
+	fi
+
+	branch=$(git rev-parse --abbrev-ref $head)
+	if [[ -z $branch || $branch == "HEAD" ]]; then
+		echo "Warning: couldn't determine branch name for $head" >&2
+		branch="FIXME"
+	fi
+
+	echo "Comparing $head vs $base on branch $branch"
+
+	merge_base=$(git merge-base $head $base)
+	head_rev=$(git rev-parse $head)
+
+	if [[ "$merge_base" == "$head_rev" ]]; then
+		echo "Error: merge-base == head revision, nothing to check" >&2
+		exit 1
+	fi
+
+	i=0
+	ok=0
+	for commit in $(git rev-list --reverse ${merge_base}..${head})
+	do
+		i=$((i+1))
+
+		subject=$(git log -1 --format="%s" $commit)
+
+		thanks=$(git log -1 --show-notes=* --format="%N" $commit | sort -u | grep "Thanks-sent:")
+		thanks=${thanks##Thanks-sent: }
+		if [[ "$thanks" == "yes" ]]; then
+			echo "Note: thanks already sent for $commit $subject" >&2
+			continue
+		fi
+
+		pwid=$(git log -1 --format="%N" $commit | grep "Patchwork-id:")
+		pwid=${pwid##Patchwork-id: }
+
+		if [[ -z $pwid ]]; then
+			echo "Warning: couldn't find patchwork id for $commit $subject" >&2
+			continue
+		fi
+
+		thanks-for-patch $branch $commit $pwid
+		if [[ $? -ne 0 ]]; then
+			echo "Warning: error writing thanks for $commit $subject" >&2
+			continue
+		fi
+		ok=$((ok+1))
+	done
+
+	echo -e "\nWrote $ok reviews for $i commits" >&2
+}
+
+main $@
+exit 0

@@ -1,0 +1,16 @@
+#!/bin/bash
+
+if [[ -z $2 ]]; then
+	echo "Usage: $0 <patch id> <commit>" >&2
+	exit 1
+fi
+
+patchid=$1
+commit=$2
+
+set -e
+
+wget http://patchwork.ozlabs.org/patch/${patchid}/mbox/ -O .git/patchwork/${patchid}.original
+git notes --ref=patchwork add -f -m "Patchwork-id: ${patchid}" $commit
+
+exit 0

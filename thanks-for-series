@@ -47,8 +47,7 @@ function main
 			continue
 		fi
 
-		pwid=$(git log -1 --format="%N" $commit | grep "Patchwork-id:")
-		pwid=${pwid##Patchwork-id: }
+		pwid=$(git log -1 --format="%N" $commit | awk '/Patchwork-id:/ {print $2}')
 
 		if [[ -z $pwid ]]; then
 			echo "Warning: couldn't find patchwork id for $commit $subject" >&2

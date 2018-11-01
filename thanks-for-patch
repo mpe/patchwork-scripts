@@ -134,10 +134,15 @@ def get_subject(msg, strip_subj_prefix):
     subj = re.sub('(.*)([0-9])+/([0-9]+)(.*)', r'\1\2 of \3\4', subj)
     subj = re.sub('(.*)v[0-9]+(.*)', r'\1 \2', subj)
 
+    subj = subj.replace(';', ' ')
     subj = subj.replace(',', ' ')
     subj = subj.replace('/', '-')
+    subj = subj.replace('\\', '-')
     subj = subj.replace('>', '-')
     subj = subj.replace('<', '-')
+    subj = subj.replace('|', '-')
+    subj = subj.replace('@', '-')
+    subj = subj.replace('!', '-')
     subj = subj.strip()
     subj = subj.replace(' ', '-')
 

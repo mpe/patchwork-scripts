@@ -55,7 +55,7 @@ def prepare_message(options, branch, commit, msg, dst):
     date_tuple = email.utils.parsedate_tz(msg['Date'])
     timestamp = email.utils.mktime_tz(date_tuple)
     date = datetime.utcfromtimestamp(timestamp)
-    date_str = date.strftime('%a, %Y-%d-%m at %H:%M:%S UTC')
+    date_str = date.strftime('%a, %Y-%m-%d at %H:%M:%S UTC')
 
     def write_header(header, val):
         dst.write('%s: %s\n' % (header, val))

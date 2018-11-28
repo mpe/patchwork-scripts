@@ -183,7 +183,7 @@ def main(args):
     subject = get_subject(msg, options['strip-subj-prefix'])
 
     base_branch = branch.split('/', 1)[-1]
-    fname = 'thanks_%s_%s_%s.txt' % (base_branch, subject, commit)
+    fname = 'thanks_%s_%s_%s_%s.txt' % (base_branch, pid, subject, commit)
 
     with open(fname, 'w') as out:
         prepare_message(options, base_branch, commit, msg, out)

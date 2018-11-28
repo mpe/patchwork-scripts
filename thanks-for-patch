@@ -18,6 +18,7 @@ from subprocess import check_output
 
 DEFAULTS = {
     'korg-url'          : 'https://git.kernel.org/yourrepo/c/',
+    'patchwork-url'     : 'https://patchwork.kernel.org',
     'x-header-tag'      : 'your-project',
     'strip-domain'      : 'your-domain.com',
     'from'              : 'Your Name <patch-notifications@your-domain.com>',
@@ -171,17 +172,17 @@ def main(args):
         print("Error: couldn't retrieve commit from kernel.org", url)
         return 1
 
-    try:
-        body = open('.git/patchwork/%s.original' % pid).read()
-    except IOError as e:
-        print("Error: couldn't open original patch!", e)
+    url = '%s/patch/%s/mbox/' % (options['patchwork-url'], pid)
+    r = requests.get(url)
+    if r.status_code != 200:
+        print("Error: couldn't download original patch!", r.status_code, url)
         return 1
 
-    base_branch = branch.split('/', 1)[-1]
-
+    body = r.text
     msg = email.message_from_string(body)
     subject = get_subject(msg, options['strip-subj-prefix'])
 
+    base_branch = branch.split('/', 1)[-1]
     fname = 'thanks_%s_%s_%s.txt' % (base_branch, subject, commit)
 
     with open(fname, 'w') as out:

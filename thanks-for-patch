@@ -67,6 +67,7 @@ def prepare_message(options, branch, commit, msg, dst):
 
     write_header('X-%s-patch-notification' % options['x-header-tag'], 'thanks')
     write_header('X-%s-patch-commit' % options['x-header-tag'], commit)
+    write_header('X-Patchwork-Hint', 'ignore')
     copy_header('Message-ID', 'In-Reply-To')
 
     sender = flatten_newlines(msg['From'])

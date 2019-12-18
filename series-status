@@ -1,0 +1,102 @@
+#!/usr/bin/python3
+
+import os
+import sys
+import re
+import requests
+from subprocess import check_output, check_call
+
+
+def run(cmd):
+    return check_output(cmd.split()).decode('utf-8').strip()
+
+
+def is_merge(sha1):
+    return os.system('git rev-parse --verify %s^2 >/dev/null 2>&1' % sha1) == 0
+
+def main(args):
+    if len(args) == 0:
+        print("Usage: series-status <status> [base] [head]", file=sys.stderr)
+        return 1
+
+    status = args.pop(0)
+
+    if len(args) == 0:
+        base = 'master'
+    else:
+        base = args.pop(0)
+
+    if len(args) == 0:
+        head = 'HEAD'
+    else:
+        head = args.pop(0)
+
+    print("Using commits from %s to %s" % (head, base))
+
+    merge_base = run('git merge-base %s %s' % (head, base))
+    head_rev = run('git rev-parse %s' % head)
+
+    if merge_base == head_rev:
+        print("Error: merge-base == head revision, nothing to modify?", file=sys.stderr)
+        return 1
+
+    if status != 'info':
+        print("Commits to modify:")
+
+        check_call(['git', 'log', "--format=%C(auto)%h %C(auto,green)%<(18,trunc)%aN %Cblue%d%Creset %s",
+                    '--abbrev-commit', '%s..%s' % (merge_base, head)])
+
+        print("Continue y/n? ", end='')
+        sys.stdout.flush()
+
+        response = sys.stdin.readline().strip()
+
+        if response != "y":
+            print("exiting")
+            return 0
+
+    commits = run('git rev-list --reverse %s..%s' % (merge_base, head)).splitlines()
+
+    patt = re.compile("^Patchwork-id: (\d+)")
+
+    session = requests.Session()
+
+    for commit in commits:
+        subject = run('git log -1 --format=%%s %s' % commit)
+
+        if is_merge(commit):
+            print("Skipping merge,", subject, commit)
+            continue
+
+        count = 0
+        for line in run('git log -1 --show-notes=patchwork --format=%%N %s' % commit).splitlines():
+
+            m = patt.match(line)
+            if not m:
+                continue
+
+            count += 1
+            pwid = m.group(1)
+
+            if status == 'info':
+                url = 'https://patchwork.ozlabs.org/api/patches/%s/' % pwid
+                result = session.get(url)
+                if result.status_code != 200:
+                    print("Error %d getting status for %s:\n%s" % (result.status_code, pwid, result))
+                else:
+                    state = result.json()['state']
+                    print("Status is %s for %s (%s) %s" % (state, subject, pwid, commit))
+            elif status == 'accept':
+                check_call(['git', 'pw', 'patch', 'update', '--commit-ref', commit, '--state', status, pwid])
+                print("Accepted %s (%s, #%d)" % (subject, pwid, count))
+            else:
+                # eg. under-review
+                check_call(['git', 'pw', 'patch', 'update', '--state', status, pwid])
+                print("Set status for %s (%s, #%d)" % (subject, pwid, count))
+
+
+        if count == 0:
+            print("Warning: no patchwork id for", commit, subject)
+
+
+sys.exit(main(sys.argv[1:]))
